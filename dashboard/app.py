@@ -1,6 +1,6 @@
 """
-app.py — Pharma Supply Chain Dashboard
-Author: Kouamé Ruben
+app.py -- Pharma Supply Chain Dashboard
+Author: Kouame Ruben
 Stack: Streamlit + Plotly
 Launch: streamlit run dashboard/app.py
 """
@@ -10,6 +10,9 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
+import subprocess
+import sys
+import os
 from pathlib import Path
 
 st.set_page_config(
@@ -19,10 +22,46 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# ── Auto-run pipeline if data doesn't exist ──
+def ensure_data_exists():
+    """Run the pipeline automatically if processed data is missing."""
+    # Determine project root (parent of dashboard/)
+    dashboard_dir = Path(__file__).resolve().parent
+    project_root = dashboard_dir.parent
+    os.chdir(project_root)
+    
+    data_check = project_root / "data" / "processed" / "pharma_enriched.parquet"
+    if not data_check.exists():
+        with st.spinner("Generating data... Running pipeline for the first time (takes ~20s)..."):
+            pipeline_path = project_root / "python" / "pipeline.py"
+            if pipeline_path.exists():
+                env = os.environ.copy()
+                env["PYTHONIOENCODING"] = "utf-8"
+                result = subprocess.run(
+                    [sys.executable, str(pipeline_path)],
+                    capture_output=True, text=True,
+                    cwd=str(project_root), env=env,
+                    encoding="utf-8", errors="replace"
+                )
+                if result.returncode == 0:
+                    st.success("Pipeline complete! Data generated.")
+                else:
+                    st.error(f"Pipeline failed: {result.stderr[-300:]}")
+                    st.stop()
+            else:
+                st.error("Pipeline script not found. Run 'python python/pipeline.py' manually first.")
+                st.stop()
+
+ensure_data_exists()
+
 # ── Load Data ──
 @st.cache_data
 def load_data():
-    base = Path("data/processed")
+    # Determine project root
+    dashboard_dir = Path(__file__).resolve().parent
+    project_root = dashboard_dir.parent
+    base = project_root / "data" / "processed"
+    
     data = {}
     for f in ["pharma_enriched", "district_monthly", "product_monthly",
               "global_kpis", "category_kpis", "forecast_results", "alerts"]:
