@@ -1,0 +1,12 @@
+data/raw/
+data/processed/
+models/*.pkl
+outputs/
+__pycache__/
+*.pyc
+.env
+.streamlit/
+*.parquet
+.Rhistory
+.RData
+.Rproj.user
